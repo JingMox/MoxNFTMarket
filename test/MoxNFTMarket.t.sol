@@ -28,7 +28,8 @@ contract MoxNFTMarketTest is Test {
         tokenId = nft.mint(seller);
 
         // Allocate 1000 MOX payment tokens to buyer
-        paymentToken.transfer(buyer, 1000 * 10 ** 18);
+        bool success = paymentToken.transfer(buyer, 1000 * 10 ** 18);
+        assertTrue(success);
     }
 
     function testListNFT() public {
@@ -55,7 +56,7 @@ contract MoxNFTMarketTest is Test {
         market.cancelListing(listingId);
         vm.stopPrank();
 
-        (, , , , bool isActive) = market.listings(listingId);
+        (,,,, bool isActive) = market.listings(listingId);
         assertFalse(isActive);
     }
 
@@ -88,7 +89,7 @@ contract MoxNFTMarketTest is Test {
         assertEq(paymentToken.balanceOf(buyer), 900 * 10 ** 18);
         assertEq(nft.ownerOf(tokenId), buyer);
 
-        (, , , , bool isActive) = market.listings(listingId);
+        (,,,, bool isActive) = market.listings(listingId);
         assertFalse(isActive);
     }
 
@@ -99,16 +100,17 @@ contract MoxNFTMarketTest is Test {
         uint256 listingId = market.list(address(nft), tokenId, LIST_PRICE);
         vm.stopPrank();
 
-        // Buyer purchases using callback hook in a single step
+        // Buyer purchases using token callback hook in a single step
         vm.prank(buyer);
-        market.buyNFTWithCallback(listingId);
+        bytes memory data = abi.encode(listingId);
+        paymentToken.transferWithCallbackAndData(address(market), LIST_PRICE, data);
 
         // Verify token balances and NFT ownership
         assertEq(paymentToken.balanceOf(seller), LIST_PRICE);
         assertEq(paymentToken.balanceOf(buyer), 900 * 10 ** 18);
         assertEq(nft.ownerOf(tokenId), buyer);
 
-        (, , , , bool isActive) = market.listings(listingId);
+        (,,,, bool isActive) = market.listings(listingId);
         assertFalse(isActive);
     }
 

@@ -10,7 +10,7 @@ interface IExtendedERC20 is IERC20 {
     function transferWithCallbackAndData(address _to, uint256 _value, bytes calldata _data) external returns (bool);
 }
 
-contract ExtendedERC20 {
+contract ExtendedERC20 is IExtendedERC20 {
     string public name;
     string public symbol;
     uint8 public decimals;
@@ -57,9 +57,26 @@ contract ExtendedERC20 {
 
         emit Transfer(msg.sender, _to, _value);
 
-        //if _to is contract, use it tokensReceived function
+        // If _to is contract, invoke its tokensReceived function
         if (isContract(_to)) {
             try ITokensReceiver(_to).tokensReceived(msg.sender, _value) returns (bool) {} catch {}
+        }
+
+        return true;
+    }
+
+    function transferWithCallbackAndData(address _to, uint256 _value, bytes calldata _data) external returns (bool) {
+        require(balances[msg.sender] >= _value, "ERC20: transfer amount exceeds balance");
+        require(_to != address(0), "ERC20: transfer to the zero address");
+
+        balances[msg.sender] -= _value;
+        balances[_to] += _value;
+
+        emit Transfer(msg.sender, _to, _value);
+
+        if (isContract(_to)) {
+            bool success = ITokensReceiver(_to).tokensReceived(msg.sender, _value, _data);
+            require(success, "ERC20: token callback failed");
         }
 
         return true;
